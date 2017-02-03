@@ -2,6 +2,7 @@
 
 # Python import.
 import json
+import urllib.request
 
 # User imports.
 from . import generate_dict_paths
@@ -66,7 +67,7 @@ class Configuration(object):
 
         self._configParams.update(paramsToAdd)
 
-    def set_from_json(self, config, schema, newEncoding=None, storeDefaults=True):
+    def set_from_json(self, config, schema, newEncoding=None, storeDefaults=True, schemaRoot=None):
         """Add parameters to a Configuration object from a JSON formatted file or dict.
 
         Any configuration parameters that the user has defined will overwrite existing parameters with the same name.
@@ -83,6 +84,8 @@ class Configuration(object):
         :param storeDefaults:   Whether defaults from the schema should be stored. Defaults will never overwrite
                                     existing or user-defined parameters.
         :type storeDefaults:    bool
+        :param schemaRoot:      The path to the directory holding the schema.
+        :type schemaRoot:       str
 
         """
 
@@ -103,11 +106,17 @@ class Configuration(object):
             fid.close()
 
         # Validate the configuration data.
-        jsonschema.validate(config, schema)
+        if schemaRoot:
+            schemaURI = "file:{:s}/".format(urllib.request.pathname2url(schemaRoot))
+            resolver = jsonschema.RefResolver(schemaURI, None)
+            jsonschema.validate(config, schema, resolver=resolver)
+        else:
+            jsonschema.validate(config, schema)
 
         # Set schema defaults.
         if storeDefaults:
-            extractedDefaults, defaultsExtracted = json_schema_operations.extract_schema_defaults(schema, newEncoding)
+            extractedDefaults, defaultsExtracted = json_schema_operations.extract_schema_defaults(
+                schema, newEncoding, schemaRoot)
             for i in generate_dict_paths.main(extractedDefaults):
                 self.set_param(*i, overwrite=False)
 

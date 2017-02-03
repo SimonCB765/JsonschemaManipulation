@@ -48,7 +48,7 @@ def change_encoding(jsonObject, encoding="utf-8"):
         return jsonObject
 
 
-def extract_schema_defaults(schema, newEncoding):
+def extract_schema_defaults(schema, newEncoding, externalRefLoc=None):
     """Extract the default attribute values derived from the types and defaults specified in a JSON schema.
 
     If no user supplied default is present in the schema for a given element, then only a "null" element will get a
@@ -75,6 +75,9 @@ def extract_schema_defaults(schema, newEncoding):
     :type schema:           dict
     :param newEncoding:     The encoding to convert all strings in any external JSON configuration objects to.
     :type newEncoding:      str
+    :param externalRefLoc:  The location from which externally referenced files should be loaded. Files are loaded from
+                            the current working directory if no eternal location is provided.
+    :type externalRefLoc:   str
     :return:                The default values for the current (sub-)schema.
     :rtype:                 dict
 
@@ -93,10 +96,14 @@ def extract_schema_defaults(schema, newEncoding):
         if "$ref" in j.keys():
             defPath = j.get("$ref")
             if defPath.startswith("file:"):
-                # The reference is to a file location external to the current file.
+                # The reference is to a file location external to the current file. The identified file is assumed
+                # to be relative to the current working directory.
                 defPath = os.path.normpath(defPath)
                 defPath = defPath[5:].split(os.sep)
-                defPath = os.path.join(os.getcwd(), *defPath)
+                if externalRefLoc:
+                    defPath = os.path.join(externalRefLoc, *defPath)
+                else:
+                    defPath = os.path.join(os.getcwd(), *defPath)
 
                 # Extract the external schema information.
                 fid = open(defPath, 'r')
@@ -118,7 +125,7 @@ def extract_schema_defaults(schema, newEncoding):
         if elementType == "object":
             # The element is an object, so try and extract its defaults.
             schema["properties"] = j["properties"]
-            elementDefaults, defaultExtracted = extract_schema_defaults(schema, newEncoding)
+            elementDefaults, defaultExtracted = extract_schema_defaults(schema, newEncoding, externalRefLoc)
             if defaultExtracted:
                 defaultsFound = True
                 schemaDefaults[i] = elementDefaults
