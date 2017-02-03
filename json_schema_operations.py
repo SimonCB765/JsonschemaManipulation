@@ -97,7 +97,15 @@ def extract_schema_defaults(schema, newEncoding, externalRefLoc=None):
             defPath = j.get("$ref")
             if defPath.startswith("file:"):
                 # The reference is to a file location external to the current file. The identified file is assumed
-                # to be relative to the current working directory.
+                # to be relative to the current working directory unless externalRefLoc is defined.
+                localPropertyPath = None
+                if '#' in defPath:
+                    # The external schema file location also contains the relative id of a property in the schema
+                    # (appended to the end as #/prop/id/path). This needs to be treated separately to the
+                    # extraction of the file location.
+                    defPath, localPropertyPath = defPath.split('#')
+                    localPropertyPath = localPropertyPath.split("/")[1:]  # Ignore the '#' at the beginning of the path.
+
                 defPath = os.path.normpath(defPath)
                 defPath = defPath[5:].split(os.sep)
                 if externalRefLoc:
@@ -112,8 +120,11 @@ def extract_schema_defaults(schema, newEncoding, externalRefLoc=None):
                     externalSchema = change_encoding(externalSchema, newEncoding)
                 fid.close()
 
-                # Set the element being examined to be the external schema just loaded.
-                j = externalSchema
+                # Set the element being examined to be the external schema just loaded or some sub-property of it.
+                if localPropertyPath:
+                    j = reduce(lambda d, key: d.get(key) if d else None, localPropertyPath, externalSchema)
+                else:
+                    j = externalSchema
             else:
                 # The reference is to an element in the definitions tag of the current schema file.
                 defPath = j.get("$ref").split("/")[1:]  # Ignore the '#' at the beginning of the ref path.

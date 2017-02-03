@@ -122,7 +122,7 @@ class Configuration(object):
 
         # Add the configuration parameters.
         for i in generate_dict_paths.main(config):
-                self.set_param(*i, overwrite=True)
+            self.set_param(*i, overwrite=True)
 
     def set_param(self, path, value, overwrite=False):
         """Set a configuration parameter by path.
