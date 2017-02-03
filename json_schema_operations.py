@@ -100,13 +100,13 @@ def extract_schema_defaults(schema, newEncoding):
 
                 # Extract the external schema information.
                 fid = open(defPath, 'r')
-                schema = json.load(fid)
+                externalSchema = json.load(fid)
                 if newEncoding:
-                    schema = change_encoding(schema, newEncoding)
+                    externalSchema = change_encoding(externalSchema, newEncoding)
                 fid.close()
 
                 # Set the element being examined to be the external schema just loaded.
-                j = schema
+                j = externalSchema
             else:
                 # The reference is to an element in the definitions tag of the current schema file.
                 defPath = j.get("$ref").split("/")[1:]  # Ignore the '#' at the beginning of the ref path.
