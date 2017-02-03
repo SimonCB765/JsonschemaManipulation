@@ -1,7 +1,9 @@
 """Code for manipulating JSON schemas."""
 
 # Python imports.
+import json
 import operator
+import os
 import sys
 
 # Define functions for compatibility.
@@ -46,7 +48,7 @@ def change_encoding(jsonObject, encoding="utf-8"):
         return jsonObject
 
 
-def extract_schema_defaults(schema):
+def extract_schema_defaults(schema, newEncoding):
     """Extract the default attribute values derived from the types and defaults specified in a JSON schema.
 
     If no user supplied default is present in the schema for a given element, then only a "null" element will get a
@@ -69,10 +71,12 @@ def extract_schema_defaults(schema):
             not to) as a value has to be supplied in each instantiation of the schema for the instantiation to
             validate successfully.
 
-    :param schema:  A JSON object containing a schema that the instantiations will be evaluated against.
-    :type schema:   dict
-    :return:        The default values for the current (sub-)schema.
-    :rtype:         dict
+    :param schema:          A JSON object containing a schema that the instantiations will be evaluated against.
+    :type schema:           dict
+    :param newEncoding:     The encoding to convert all strings in any external JSON configuration objects to.
+    :type newEncoding:      str
+    :return:                The default values for the current (sub-)schema.
+    :rtype:                 dict
 
     """
 
@@ -87,8 +91,26 @@ def extract_schema_defaults(schema):
     for i, j in iteritems(schema.get("properties")):
         # If the element value is a reference, then replace the reference with the referenced element.
         if "$ref" in j.keys():
-            defPath = j.get("$ref").split("/")[1:]  # Ignore the '#' at the beginning of the ref path.
-            j = reduce(lambda d, key: d.get(key) if d else None, defPath, schema)
+            defPath = j.get("$ref")
+            if defPath.startswith("file:"):
+                # The reference is to a file location external to the current file.
+                defPath = os.path.normpath(defPath)
+                defPath = defPath[5:].split(os.sep)
+                defPath = os.path.join(os.getcwd(), *defPath)
+
+                # Extract the external schema information.
+                fid = open(defPath, 'r')
+                schema = json.load(fid)
+                if newEncoding:
+                    schema = change_encoding(schema, newEncoding)
+                fid.close()
+
+                # Set the element being examined to be the external schema just loaded.
+                j = schema
+            else:
+                # The reference is to an element in the definitions tag of the current schema file.
+                defPath = j.get("$ref").split("/")[1:]  # Ignore the '#' at the beginning of the ref path.
+                j = reduce(lambda d, key: d.get(key) if d else None, defPath, schema)
 
         # Determine the type of the element.
         elementType = j.get("type")
@@ -96,7 +118,7 @@ def extract_schema_defaults(schema):
         if elementType == "object":
             # The element is an object, so try and extract its defaults.
             schema["properties"] = j["properties"]
-            elementDefaults, defaultExtracted = extract_schema_defaults(schema)
+            elementDefaults, defaultExtracted = extract_schema_defaults(schema, newEncoding)
             if defaultExtracted:
                 defaultsFound = True
                 schemaDefaults[i] = elementDefaults

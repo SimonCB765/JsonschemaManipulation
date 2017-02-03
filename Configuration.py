@@ -107,7 +107,7 @@ class Configuration(object):
 
         # Set schema defaults.
         if storeDefaults:
-            extractedDefaults, defaultsExtracted = json_schema_operations.extract_schema_defaults(schema)
+            extractedDefaults, defaultsExtracted = json_schema_operations.extract_schema_defaults(schema, newEncoding)
             for i in generate_dict_paths.main(extractedDefaults):
                 self.set_param(*i, overwrite=False)
 
