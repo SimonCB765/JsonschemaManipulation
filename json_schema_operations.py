@@ -135,11 +135,17 @@ def extract_schema_defaults(schema, newEncoding, externalRefLoc=None):
 
         if elementType == "object":
             # The element is an object, so try and extract its defaults.
-            schema["properties"] = j["properties"]
-            elementDefaults, defaultExtracted = extract_schema_defaults(schema, newEncoding, externalRefLoc)
-            if defaultExtracted:
-                defaultsFound = True
-                schemaDefaults[i] = elementDefaults
+            if "properties" not in j:
+                # If the subschema only defines pattern properties, then there will be no "properties" field, but will
+                # be a patternProperties field. In this case we just skip the object as we don't set defaults
+                # for pattern properties.
+                pass
+            else:
+                schema["properties"] = j["properties"]
+                elementDefaults, defaultExtracted = extract_schema_defaults(schema, newEncoding, externalRefLoc)
+                if defaultExtracted:
+                    defaultsFound = True
+                    schemaDefaults[i] = elementDefaults
         elif elementType in ["array", "boolean", "integer", "number", "string"]:
             # The element is a basic type, so we just need to try and extract a default value.
             default = j.get("default", None)
